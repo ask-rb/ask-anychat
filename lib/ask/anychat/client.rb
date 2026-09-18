@@ -55,6 +55,38 @@ module Ask
         delete("#{agents_path(workspace)}/#{encode(handle)}")
       end
 
+      # -- sources -----------------------------------------------------------
+
+      # The sources an agent may read, oldest first.
+      def agent_sources(workspace, agent)
+        fetch_key(get(sources_path(workspace, agent)), "sources")
+      end
+
+      # One source, by the handle list_sources returns.
+      def agent_source(workspace, agent, source)
+        fetch_key(get("#{sources_path(workspace, agent)}/#{encode(source)}"), "source")
+      end
+
+      # Every page this agent may read in a source — the manifest.
+      def agent_source_pages(workspace, agent, source)
+        fetch_key(get("#{sources_path(workspace, agent)}/#{encode(source)}/pages"), "pages")
+      end
+
+      # One page, as clean markdown, from the plane or from the website itself
+      # when the plane has nothing. Returns the full page hash with title,
+      # content, and source keys.
+      def agent_source_page(workspace, agent, source, reference)
+        get("#{sources_path(workspace, agent)}/#{encode(source)}/pages#{reference}")
+      end
+
+      # Search the pages an agent may read within a source.
+      def agent_source_search(workspace, agent, source, query)
+        fetch_key(
+          get("#{sources_path(workspace, agent)}/#{encode(source)}/search", q: query),
+          "results"
+        )
+      end
+
       # The headers every request carries. Public because it is the honest
       # answer to "what does this client send?" — and because a caller swapping
       # the connection under it should be able to keep them.
@@ -72,6 +104,10 @@ module Ask
 
       def agents_path(workspace)
         "/api/#{API_VERSION}/workspaces/#{encode(workspace)}/agents"
+      end
+
+      def sources_path(workspace, agent)
+        "#{agents_path(workspace)}/#{encode(agent)}/sources"
       end
 
       def get(path, params = nil)

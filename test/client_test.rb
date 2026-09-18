@@ -8,6 +8,7 @@ require_relative "test_helper"
 class ClientTest < Minitest::Test
   BASE_URL = "https://anywaye.test"
   AGENTS = "/api/v1/workspaces/anywaye/agents"
+  SOURCES = "/api/v1/workspaces/anywaye/agents/support/sources"
 
   def setup
     Ask::Auth.reset_configuration!
@@ -139,6 +140,80 @@ class ClientTest < Minitest::Test
     client_with(stubs).workspace_agent("two words", "a/b")
 
     assert_equal "/api/v1/workspaces/two%20words/agents/a%2Fb", asked
+  end
+
+  # -- sources -------------------------------------------------------------
+
+  def test_lists_sources_an_agent_may_read
+    stubs = Faraday::Adapter::Test::Stubs.new
+    stub_json(stubs, :get, SOURCES, 200, {
+      sources: [{ handle: "website", kind: "site", name: "Example", address: "/anywaye/support/website" }]
+    })
+
+    sources = client_with(stubs).agent_sources("anywaye", "support")
+
+    assert_equal 1, sources.length
+    assert_equal "website", sources.first["handle"]
+  end
+
+  def test_shows_one_source_by_its_handle
+    stubs = Faraday::Adapter::Test::Stubs.new
+    stub_json(stubs, :get, "#{SOURCES}/website", 200, {
+      source: { handle: "website", kind: "site", name: "Example" }
+    })
+
+    source = client_with(stubs).agent_source("anywaye", "support", "website")
+
+    assert_equal "website", source["handle"]
+  end
+
+  def test_lists_pages_in_a_source
+    stubs = Faraday::Adapter::Test::Stubs.new
+    stub_json(stubs, :get, "#{SOURCES}/website/pages", 200, {
+      pages: [{ reference: "/pricing", title: "Pricing" }]
+    })
+
+    pages = client_with(stubs).agent_source_pages("anywaye", "support", "website")
+
+    assert_equal 1, pages.length
+    assert_equal "/pricing", pages.first["reference"]
+  end
+
+  def test_reads_one_page_as_markdown
+    stubs = Faraday::Adapter::Test::Stubs.new
+    stub_json(stubs, :get, "#{SOURCES}/website/pages/pricing", 200, {
+      title: "Pricing", content: "# Pricing\n\nPlans start at $9/mo.", source: "website"
+    })
+
+    page = client_with(stubs).agent_source_page("anywaye", "support", "website", "/pricing")
+
+    assert_equal "Pricing", page["title"]
+    assert_includes page["content"], "Plans start at $9/mo."
+  end
+
+  def test_searches_pages_in_a_source
+    stubs = Faraday::Adapter::Test::Stubs.new
+    stub_json(stubs, :get, "#{SOURCES}/website/search", 200, {
+      results: [{ reference: "/pricing", title: "Pricing", snippet: "Plans start at..." }]
+    })
+
+    results = client_with(stubs).agent_source_search("anywaye", "support", "website", "pricing")
+
+    assert_equal 1, results.length
+    assert_equal "/pricing", results.first["reference"]
+  end
+
+  def test_search_sends_the_query_as_a_param
+    stubs = Faraday::Adapter::Test::Stubs.new
+    sent = nil
+    stubs.get("#{SOURCES}/website/search") do |env|
+      sent = env.params["q"]
+      [200, { "Content-Type" => "application/json" }, { results: [] }.to_json]
+    end
+
+    client_with(stubs).agent_source_search("anywaye", "support", "website", "pricing")
+
+    assert_equal "pricing", sent
   end
 
   # -- what it makes of a refusal -----------------------------------------
