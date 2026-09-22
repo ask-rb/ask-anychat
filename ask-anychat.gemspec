@@ -28,7 +28,7 @@ Gem::Specification.new do |spec|
   spec.files = Dir["lib/**/*", "LICENSE", "README.md", "CHANGELOG.md"]
   spec.require_paths = ["lib"]
 
-  spec.add_dependency "ask-auth", ">= 0.3.2"
+  spec.add_dependency "ask-auth", ">= 0.3.5"
   spec.add_dependency "faraday", "~> 2.0"
   spec.add_dependency "faraday-retry", "~> 2.0"
 
